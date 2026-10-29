@@ -1,0 +1,16 @@
+scene-builder
+Copyright (c) 2026 Electronics and Telecommunications Research Institute (ETRI)
+
+This program is dual-licensed.
+
+1. GNU General Public License, version 3 only (GPL-3.0-only).
+   See the LICENSE file for the full text.
+
+2. A commercial license from ETRI, for use under terms other than the GPL
+   (for example, in proprietary products). Contact ETRI for details.
+
+SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-ETRI-Commercial
+
+This program reads driving logs in the TFExample format (the same field
+layout as the Waymo Open Motion Dataset). It includes no data. Input data,
+and any data built from it, remain subject to the terms of their providers.

@@ -1,0 +1,44 @@
+[project]
+name = "scene-builder"
+version = "1.0.0"
+description = "TFExample 주행기록 → 장면 데이터셋 구축"
+license = "GPL-3.0-only OR LicenseRef-ETRI-Commercial"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Electronics and Telecommunications Research Institute (ETRI)" }]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy",
+    "torch",
+    "tensorflow>=2.21",
+    "tqdm",
+    "psutil",
+    "plotly>=6.3",
+    "kaleido>=1.0",
+]
+
+[project.scripts]
+scene-builder = "scene_builder.cli:main"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+compile-bytecode = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scene_builder"]
