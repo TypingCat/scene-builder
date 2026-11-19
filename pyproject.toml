@@ -1,7 +1,7 @@
 [project]
 name = "scene-builder"
 version = "1.0.0"
-description = "TFExample 주행기록 → 장면 데이터셋 구축"
+description = "TFExample 주행기록 변환, 시나리오 분류, 장면 난이도 분류"
 license = "GPL-3.0-only OR LicenseRef-ETRI-Commercial"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Electronics and Telecommunications Research Institute (ETRI)" }]
@@ -18,6 +18,9 @@ dependencies = [
 
 [project.scripts]
 scene-builder = "scene_builder.cli:main"
+
+[project.optional-dependencies]
+score = ["ninja", "PyYAML>=6", "pybind11>=3"]
 
 [dependency-groups]
 dev = ["pytest"]
@@ -42,3 +45,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/scene_builder"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src/scene_builder/**/*.py",
+    "/src/scene_builder/_pdm/native/*.cpp",
+    "/src/scene_builder/_pdm/native/*.h",
+    "/LICENSE",
+    "/NOTICE",
+    "/README.md",
+    "/pyproject.toml",
+    "/uv.lock",
+]

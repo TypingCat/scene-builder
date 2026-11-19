@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 import random
+import subprocess
 import sys
 from collections import Counter
 
@@ -33,6 +35,35 @@ def cmd_build(args) -> int:
 
 def cmd_count(args) -> int:
     return pipeline.count(args.input, verbose=args.verbose)
+
+
+def cmd_tag(args) -> int:
+    from .tagging import write_tags
+
+    ds = _open(args.input)
+    output = Path(args.output) if args.output else Path(ds.path) / 'tags.jsonl'
+    protected = (Path(ds.path) / INDEX_NAME, *(Path(p) for p in ds.shard_paths))
+    if output.resolve() in {p.resolve() for p in protected}:
+        print('scene-builder tag: 장면 데이터 파일을 태그 출력으로 쓸 수 없다.', file=sys.stderr)
+        return 1
+    scorer = None
+    try:
+        if args.score or args.pdm_deploy:
+            from ._pdm.scoring import PDMScorer
+
+            dataspec = (ds.stamp or {}).get('dataspec')
+            if not dataspec:
+                raise ValueError('PDM 채점에는 장면 데이터 규격이 필요하다.')
+            if args.pdm_deploy:
+                scorer = PDMScorer.from_deployment(args.pdm_deploy, dataspec, args.device)
+            else:
+                scorer = PDMScorer.embedded(dataspec, args.device)
+        write_tags(ds, output, scorer)
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
+        print(f'scene-builder tag: {exc}', file=sys.stderr)
+        return 1
+    print(output)
+    return 0
 
 
 def _open(path: str) -> SceneDataset:
@@ -129,14 +160,16 @@ def cmd_view(args) -> int:
 
 EXAMPLES = {
     'build': [
-        r'scene-builder build -i C:\data\tfexample_1.3.1_validation -o C:\data\etri_1.3.1_validation',
-        r'scene-builder build -i C:\data\tfexample_1.3.1_validation -o C:\data\etri_1.3.1_validation --limit 1',
+        'scene-builder build -i tfrecords -o scenes',
+        'scene-builder build -i tfrecords -o scenes --limit 1',
     ],
-    'count': [r'scene-builder count -i C:\data\tfexample_1.3.1_validation -v'],
-    'info': [r'scene-builder info -i C:\data\etri_1.3.1_validation'],
-    'dump': [r'scene-builder dump -i C:\data\etri_1.3.1_validation --index 0'],
-    'check': [r'scene-builder check -i C:\data\etri_1.3.1_validation --sample 1000'],
-    'view': [r'scene-builder view -i C:\data\etri_1.3.1_validation -o out\view --index 0 1 2 --png --grid 3'],
+    'count': ['scene-builder count -i tfrecords -v'],
+    'info': ['scene-builder info -i scenes'],
+    'dump': ['scene-builder dump -i scenes --index 0'],
+    'tag': ['scene-builder tag -i scenes',
+            'scene-builder tag -i scenes --score -o scores.jsonl'],
+    'check': ['scene-builder check -i scenes --sample 1000'],
+    'view': ['scene-builder view -i scenes -o figures --index 0 1 2 --png --grid 3'],
 }
 
 REQUIRED = {
@@ -144,6 +177,7 @@ REQUIRED = {
     'count': ('input',),
     'info': ('input',),
     'dump': ('input', 'index'),
+    'tag': ('input',),
     'check': ('input',),
     'view': ('input', 'output', 'index'),
 }
@@ -182,7 +216,7 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argument
     fmt = argparse.RawDescriptionHelpFormatter
     ap = argparse.ArgumentParser(
         prog='scene-builder', formatter_class=fmt,
-        description='TFExample 주행기록 → 장면 데이터셋 구축·보기·점검·그림',
+        description='TFExample 주행기록 변환, 시나리오 분류, 장면 난이도 분류',
         epilog=_epilog(None))
     _korean_titles(ap)
     sub = ap.add_subparsers(dest='cmd', metavar='<명령>', title='명령')
@@ -212,6 +246,13 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argument
 
     p = add('dump', '장면 한 장의 필드 형상·자료형·범위', cmd_dump)
     p.add_argument('--index', type=int, metavar='I', help='장면 전역 번호')
+
+    p = add('tag', '시나리오 태그와 선택적 Score 태그 계산', cmd_tag)
+    p.add_argument('-o', '--output', metavar='FILE', help='태그 JSONL (기본: 입력 폴더의 tags.jsonl)')
+    score = p.add_mutually_exclusive_group()
+    score.add_argument('--score', action='store_true', help='내장 PDM으로 Score 계산')
+    score.add_argument('--pdm-deploy', metavar='DIR', help='외부 PDM 배포물로 Score 계산')
+    p.add_argument('--device', default='cpu', metavar='DEVICE', help='Score 계산 장치 (cpu 또는 cuda:N)')
 
     p = add('check', '유효성 점검 9항목', cmd_check)
     p.add_argument('--sample', type=int, default=0, metavar='N', help='무작위 N장만 (0 = 전부)')
